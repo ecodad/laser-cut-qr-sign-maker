@@ -148,3 +148,7 @@ extending them: set an occurrence's transform only after its geometry exists and
 `place.py` after any timeline rollback; don't try to extrude-cut the imported SVG profiles,
 the touching QR modules make the boolean fail, which is why the engraving is built as
 surface patches through a base feature.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
