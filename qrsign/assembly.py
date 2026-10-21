@@ -8,6 +8,7 @@ import struct
 from pathlib import Path
 
 import numpy as np
+from shapely import affinity
 from shapely.geometry import Polygon
 
 from . import mesh3d, print3d
@@ -34,8 +35,9 @@ def _board(outline_pts, length, width, thickness):
     return mesh3d.extrude(poly, -thickness / 2, thickness / 2)
 
 
-def laser_stand(cfg, text=None, qr=None):
-    """-> list of (name, Mesh, colour) for the laser-cut stand assembled on the table."""
+def laser_stand(cfg, text=None, qr=None, base_engrave=()):
+    """-> list of (name, Mesh, colour) for the laser-cut stand assembled on the table.
+    base_engrave: the base's engraving elements (path d, transform) in its mirrored drawing coords."""
     W, H, t = cfg["width_mm"], cfg["height_mm"], cfg["thickness_mm"]
     r = cfg["corner_radius_mm"] or 0.0
     ts, tb = math.radians(cfg["angle_deg"]), math.radians(cfg["base_angle_deg"])
@@ -57,6 +59,25 @@ def laser_stand(cfg, text=None, qr=None):
             m = mesh3d.extrude(print3d.manifold_safe(g), t / 2, t / 2 + ENGRAVE_MM)
             m = m.translated(dx=-W / 2)
             parts.append((name, place(m, (0, 0, 0), u_sign, n_sign), INK))
+    if base_engrave:
+        # mirrored drawing coords (x', y down from the front end) -> board coords: the drawing face
+        # is the board's -z side (it faces up in the assembly), x_board = Wb/2 - x', y up from the back
+        from svgelements import Path as SPath, Matrix
+        from shapely.ops import unary_union
+        Wb, Lf, Lb = cfg["base_width_mm"], cfg["base_front_mm"], cfg["base_back_mm"]
+        ds = []
+        for d, tf in base_engrave:
+            pth = SPath(d)
+            if tf:
+                pth *= Matrix(tf)
+            pth.reify()
+            ds.append(pth.d())
+        shapes = print3d._shapes_from_paths(ds, 0.05)
+        if shapes:
+            g = unary_union(shapes)
+            g = affinity.affine_transform(g, [-1, 0, 0, -1, Wb / 2, Lf + Lb])   # x' -> Wb/2 - x', y -> (Lf+Lb) - y
+            m = mesh3d.extrude(print3d.manifold_safe(g), -t / 2 - ENGRAVE_MM, -t / 2)
+            parts.append(("Base engraving", place(m, base_origin, u_base, n_base), INK))
     return parts
 
 

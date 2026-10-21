@@ -71,6 +71,12 @@ DEFAULTS = {
     "line_spacing": 1.15,       # multiple of font size between baselines
     "cut_stroke_mm": 0.1,
     "piece_spacing_mm": 5.0,
+    # optional QR code + URL engraved on the top of the base, behind the sign (laser version)
+    "base_qr": 1,                       # 1 = engrave it, 0 = plain base
+    "base_qr_url": "github.com/ecodad/laser-cut-qr-sign-maker",   # what the code encodes
+    "base_qr_text": "",                 # one line under the code; blank = the URL
+    "base_qr_size_mm": 30.0,            # code width including its quiet zone
+    "base_qr_text_mm": 2.8,             # text height, shrunk if the line is wider than the base allows
     "output_dir": "output",
 }
 
@@ -79,7 +85,7 @@ class ConfigError(ValueError):
 
 
 TEXT_KEYS = {"text_above", "text_below", "qr_file", "font", "output_dir",
-             "text_above_scales", "text_below_scales"}
+             "text_above_scales", "text_below_scales", "base_qr_url", "base_qr_text"}
 
 
 def parse_config_file(path):
@@ -742,7 +748,58 @@ def _svg_doc(w, h, inner, comment):
     ])
 
 
-def write_svg(cfg, out_path, engrave, info, config_name):
+def base_engraving(cfg, ts):
+    """QR code + one text line for the top of the base, behind the sign. Returns (elements, info)
+    where elements are (path d, transform) in the base's *mirrored* drawing coords (front end at
+    the top, y down), laid out upright so they read for someone standing behind the stand.
+    Empty when base_qr is off."""
+    if not cfg.get("base_qr"):
+        return [], {}
+    url = (cfg.get("base_qr_url") or "").strip()
+    if not url:
+        return [], {}
+    from . import encode as _enc, render as _render
+    Wb, Lf, Lb = cfg["base_width_mm"], cfg["base_front_mm"], cfg["base_back_mm"]
+    b = cfg["border_mm"]
+    sw = slot_width(cfg)
+    size = max(8.0, float(cfg.get("base_qr_size_mm") or 30.0))
+    region_top = Lf + sw / 2 + b              # just behind the slot
+    region_bottom = Lf + Lb - b
+    avail_w = Wb - 2 * b
+    size = min(size, avail_w, region_bottom - region_top)
+    # plain square modules, error correction M: the smallest code that still reads on wood
+    m = _enc.encode(url, error="m")
+    geom = _render.build_geometry(m, _render.Style(body="square", eye_frame="square", eye_ball="square"))
+    total = m.size + 2 * _render.QUIET_ZONE
+    k = size / total
+    text = (cfg.get("base_qr_text") or url).strip()
+    text_mm = float(cfg.get("base_qr_text_mm") or 2.8)
+    gap = 1.5
+    t_h = 0.0
+    text_el = None
+    if text:
+        _, (x0, y0, x1, y1) = ts.layout(text)
+        wu = (x1 - x0) / ts.upm
+        if wu > 0:
+            text_mm = min(text_mm, avail_w / wu)
+        t_h = (y1 - y0) / ts.upm * text_mm
+    block_h = size + (gap + t_h if text else 0)
+    y_top = region_top + max(0.0, (region_bottom - region_top - block_h) / 2)
+    x_left = (Wb - size) / 2
+    tf = f"translate({x_left:.3f},{y_top:.3f}) scale({k:.6f})"
+    elements = [(_render.geometry_path_d(geom), tf)]
+    if text and t_h > 0:
+        _, (x0, y0, x1, y1) = ts.layout(text)
+        kk = text_mm / ts.upm
+        w = (x1 - x0) * kk
+        baseline = y_top + size + gap + y1 * kk
+        elements.append((ts.path(text, text_mm, (Wb - w) / 2, baseline), None))
+    info = {"base_qr_mm": round(size, 2), "base_qr_version": m.version, "base_qr_text_mm": round(text_mm, 2),
+            "base_qr_url": url, "base_qr_text": text}
+    return elements, info
+
+
+def write_svg(cfg, out_path, engrave, info, config_name, base_engrave=()):
     """Writes <name>.svg (both pieces side by side) plus <name>-sign.svg and <name>-base.svg."""
     W, H = cfg["width_mm"], cfg["height_mm"]
     Wb, Hb = cfg["base_width_mm"], cfg["base_front_mm"] + cfg["base_back_mm"]
@@ -757,7 +814,16 @@ def write_svg(cfg, out_path, engrave, info, config_name):
         sign_lines.append(f'      <path{t} d="{d}"/>')
     sign_lines += ['    </g>',
                    f'    <path id="sign-cut" fill="none" stroke="#ff0000" stroke-width="{cut}" d="{outline_path(sign_outline(cfg), r)}"/>']
-    base_lines = [f'    <path id="base-cut" fill="none" stroke="#ff0000" stroke-width="{cut}" d="{outline_path(base_outline(cfg), r)}"/>']
+    # The base is drawn MIRRORED about its vertical centre line: its drawing face is the one that
+    # ends up on top in the assembled stand (the plate leans through the sign face-down otherwise),
+    # so the engraving lands on top and the slot still comes out on the same physical side.
+    base_lines = [f'    <g id="base-engrave" fill="#000000" stroke="none">']
+    for d, tf in base_engrave:
+        t = f' transform="{tf}"' if tf else ""
+        base_lines.append(f'      <path{t} d="{d}"/>')
+    base_lines += ['    </g>',
+                   f'    <path id="base-cut" fill="none" stroke="#ff0000" stroke-width="{cut}" '
+                   f'transform="matrix(-1 0 0 1 {Wb:.3f} 0)" d="{outline_path(base_outline(cfg), r)}"/>']
     out_path = Path(out_path)
     out_path.write_text(_svg_doc(W + gap + Wb, max(H, Hb),
                                  ['  <g id="sign">', *sign_lines, '  </g>',
@@ -785,7 +851,9 @@ def generate(cfg, name, out_dir, qr_path, log=print):
     if cfg["merge_qr"]:
         qr_paths, qr_bbox = merge_paths(qr_paths, qr_bbox, log=log)
     engrave, info = compose(cfg, ts, qr_paths, qr_bbox)
-    sign_svg, base_svg = write_svg(cfg, out_svg, engrave, info, name)
+    base_engrave, base_info = base_engraving(cfg, ts)
+    info.update(base_info)
+    sign_svg, base_svg = write_svg(cfg, out_svg, engrave, info, name, base_engrave)
     r = cfg["corner_radius_mm"]
     geom = {
         "config": name, "font_file": str(font_path),
@@ -796,6 +864,7 @@ def generate(cfg, name, out_dir, qr_path, log=print):
         "base": {"width": cfg["base_width_mm"], "front": cfg["base_front_mm"], "back": cfg["base_back_mm"],
                  "thickness": cfg["thickness_mm"], "angle_from_vertical_deg": cfg["base_angle_deg"],
                  "slot_width": round(slot_width(cfg), 3), "slot_opens": "right",
+                 "drawing_mirrored": True, "engraving_on_top": bool(base_engrave),
                  "outline": outline_polygon(base_outline(cfg), r)},
         "corner_radius": r,
         "crossing_angle_deg": round(math.degrees(crossing_angle(cfg)), 2),
@@ -804,7 +873,7 @@ def generate(cfg, name, out_dir, qr_path, log=print):
     (out_dir / f"{name}.json").write_text(json.dumps(geom, indent=2), encoding="utf-8")
     return {
         "svg": out_svg, "sign_svg": sign_svg, "base_svg": base_svg, "json": out_dir / f"{name}.json",
-        "info": info, "geom": geom,
+        "info": info, "geom": geom, "base_engrave": base_engrave,
         "sign_svg_text": sign_svg.read_text(encoding="utf-8"),
         "base_svg_text": base_svg.read_text(encoding="utf-8"),
         "combined_svg_text": out_svg.read_text(encoding="utf-8"),

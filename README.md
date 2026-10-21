@@ -58,6 +58,13 @@ slot leaning back 10° (configurable), as wide as the sign plus side walls, and 
 a blank zone at the bottom as deep as the slot. *Generate 3D files* writes `<name>.3mf` with
 the sign and the base side by side; delete one in the slicer if you only want the other.
 
+**Base engraving.** By default the laser base also gets a 30 mm QR code and a one-line URL
+engraved on its top, behind the sign, readable from behind the stand, pointing at this
+repository so someone who likes the sign can make their own. Untick it in the sign tab to
+leave the base plain, or change the URL, the text, the size and the text height. The base is
+drawn mirrored about its centre line so that engraved face ends up on top; the slot still
+comes out on the same side when assembled.
+
 **Assembled views.** Both the sign tab and the 3D tab show an orbitable three.js view
 after Generate: the laser stand leaning on its slotted base, and the printed sign standing in
 its printed base. Drag to orbit, wheel to zoom. The parts are also written as STL files under
@@ -144,6 +151,9 @@ PNG next to it and update `qr_file`.
 | `corner_radius_mm` | radius on the four outer corners of each piece, 0 for square (2.5) |
 | `slot_clearance_mm` | added to every slot width for fit / kerf (0.1) |
 | `merge_qr` | 1 unions the QR modules and logo into single regions, 0 keeps the source shapes (1) |
+| `base_qr` | 1 engraves a QR code + URL on the top of the base, 0 leaves it plain (1) |
+| `base_qr_url`, `base_qr_text` | what the base code encodes (`github.com/ecodad/laser-cut-qr-sign-maker`) and the line under it (blank = the URL) |
+| `base_qr_size_mm`, `base_qr_text_mm` | base code width including quiet zone (30) and text height (2.8) |
 | `cut_stroke_mm` | stroke width of the red cut lines (0.1) |
 | `piece_spacing_mm` | gap between the pieces in the combined SVG (5) |
 | `output_dir` | where the files go (`output`) |
@@ -181,12 +191,15 @@ stack by their actual ink height, so a small line over a big one has no dead spa
 | `qr-sign-maker-sign.svg`, `-base.svg`, `-sheet.svg` | laser cut files: sign, base, both on one sheet |
 | `qr-sign-maker-config.txt` | the command-line config that reproduces the laser files |
 | `qr-sign-maker.3mf` | the 3D-printable sign and base, multi-filament |
-| `images/` | the QR code, the cut sheet and the two assembled views |
+| `images/` | the QR code, the cut sheet, the two assembled views, and the laser stand seen from behind with the base engraving |
 
 Open it in the app with *Open project* after copying the folder into `~/qrsign-projects/`.
 The text uses Rockwell Extra Bold; pick another font if it is not installed.
 
-<p align="center"><img src="examples/qr-sign-maker/images/cut-sheet.png" width="520" alt="Cut sheet: sign left, base right"></p>
+<p align="center">
+  <img src="examples/qr-sign-maker/images/cut-sheet.png" width="420" alt="Cut sheet: sign left, base right">
+  <img src="examples/qr-sign-maker/images/laser-stand-from-behind.png" width="400" alt="The base's QR code and URL, seen from behind the stand">
+</p>
 
 ## Tests
 

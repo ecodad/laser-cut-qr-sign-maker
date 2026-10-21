@@ -14,7 +14,8 @@ PROJECT_SUFFIX = ".qrsign.json"
 
 # the sign config keys shown on the main panel vs. the advanced panel
 MAIN_KEYS = ["width_mm", "height_mm", "thickness_mm", "text_above", "text_above_scales",
-             "text_below", "text_below_scales", "font", "border_mm"]
+             "text_below", "text_below_scales", "font", "border_mm",
+             "base_qr", "base_qr_url", "base_qr_text", "base_qr_size_mm", "base_qr_text_mm"]
 ADVANCED_KEYS = ["crossing_angle_deg", "angle_deg", "base_height_mm", "base_front_mm", "base_back_mm",
                  "base_width_mm", "base_angle_deg", "corner_radius_mm", "slot_clearance_mm", "qr_fraction",
                  "gap_mm", "line_spacing", "merge_qr", "cut_stroke_mm", "piece_spacing_mm"]
@@ -24,6 +25,8 @@ DEFAULT_SIGN = {
     "crossing_angle_deg": 90, "base_height_mm": 10, "base_front_mm": 10, "base_back_mm": 58.5,
     "text_above": "", "text_above_scales": "", "text_below": "", "text_below_scales": "",
     "font": "", "border_mm": 5, "corner_radius_mm": 2.5, "qr_fraction": 0.62,
+    "base_qr": 1, "base_qr_url": "github.com/ecodad/laser-cut-qr-sign-maker", "base_qr_text": "",
+    "base_qr_size_mm": 30, "base_qr_text_mm": 2.8,
 }
 
 

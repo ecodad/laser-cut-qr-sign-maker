@@ -144,7 +144,8 @@ def build(state: State):
     def sign_values():
         for key in project.MAIN_KEYS + project.ADVANCED_KEYS:
             if key in w["sign"]:
-                p.sign[key] = w["sign"][key].value
+                val = w["sign"][key].value
+                p.sign[key] = int(bool(val)) if key == "base_qr" else val
 
     def refresh_sign():
         sign_values()
@@ -161,7 +162,7 @@ def build(state: State):
         try:
             cfg3 = p.sign_config()
             text, qr, _, cfg3 = print3d.layout_geometry(cfg3, res["qr_svg"], None, log=lambda *a: None)
-            parts = assembly.laser_stand(cfg3, text, qr)
+            parts = assembly.laser_stand(cfg3, text, qr, res.get("base_engrave", ()))
             _fill_scene(w["sign_scene"], parts, state.folder / "output" / "assembly", "laser", p.name, cfg3["height_mm"] * 0.45)
         except Exception as e:
             ui.notify(f"3D view failed: {e}", type="warning")
@@ -327,6 +328,14 @@ def build(state: State):
                     w["sign"]["text_below_scales"] = ui.input("Relative line sizes below", value=p.sign["text_below_scales"]).classes("w-full")
                     w["sign"]["font"] = ui.select(font_names, label="Font (installed)", value=p.sign.get("font"), with_input=True).classes("w-full")
                     w["sign"]["border_mm"] = ui.number("Border (mm)", value=p.sign["border_mm"], min=0, max=50, step=0.5).classes("w-32")
+                    with ui.expansion("Base engraving: a QR code and URL on top of the base, behind the sign", icon="qr_code", value=True).classes("w-full"):
+                        w["sign"]["base_qr"] = ui.checkbox("Engrave a QR code + URL on the base", value=bool(p.sign.get("base_qr", 1)))
+                        w["sign"]["base_qr_url"] = ui.input("URL the code encodes", value=p.sign.get("base_qr_url", "")).classes("w-full")
+                        w["sign"]["base_qr_text"] = ui.input("Text line under it (blank = the URL)", value=p.sign.get("base_qr_text", "")).classes("w-full")
+                        with ui.row().classes("gap-2"):
+                            w["sign"]["base_qr_size_mm"] = ui.number("Code size (mm)", value=p.sign.get("base_qr_size_mm", 30), min=8, max=200).classes("w-32")
+                            w["sign"]["base_qr_text_mm"] = ui.number("Text height (mm)", value=p.sign.get("base_qr_text_mm", 2.8), min=1, max=20, step=0.1).classes("w-32")
+                        ui.label("Reads from behind the stand. The base is drawn mirrored so this face ends up on top.").classes("text-xs text-grey")
                     with ui.expansion("Advanced", icon="tune").classes("w-full"):
                         labels = {
                             "crossing_angle_deg": "Crossing angle between the boards (°); blank to use the sign lean below",
