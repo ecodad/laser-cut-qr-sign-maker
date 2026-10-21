@@ -49,6 +49,11 @@ slot leaning back 10° (configurable), as wide as the sign plus side walls, and 
 a blank zone at the bottom as deep as the slot. *Generate 3D files* writes `<name>.3mf` with
 the sign and the base side by side; delete one in the slicer if you only want the other.
 
+**Assembled views.** Both the sign tab and the 3D tab show an orbitable three.js view
+after Generate: the laser stand leaning on its slotted base, and the printed sign standing in
+its printed base. Drag to orbit, wheel to zoom. The parts are also written as STL files under
+the project's `output/assembly/` folder.
+
 **Projects.** *Save project* writes `~/qrsign-projects/<name>/<name>.qrsign.json` with the
 URL, the style, the logo and the sign settings; *Open project* lists the saved ones.
 

@@ -104,3 +104,11 @@ def test_prusaslicer_reads_it(tmp_path):
     info = out.stdout.lower()
     assert "number_of_facets" in info and "size_z = 3.0" in info, out.stdout
     assert "manifold = no" not in info and "error" not in info, out.stdout
+
+
+@pytest.mark.parametrize("frame,ball", [("circle", "square"), ("circle", "circle"), ("dotted", "dotted"), ("leaf", "leaf")])
+def test_eye_styles_give_closed_shells(tmp_path, frame, ball):
+    p = project.Project(name="eyes", url=URL, style=render.Style(body="smooth", eye_frame=frame, eye_ball=ball))
+    p.sign.update({"text_above": "Donate to | Medforge", "text_below": "Thank you!", "font": _font()})
+    res = p.make_print(tmp_path, log=lambda *a: None)
+    assert all(v["closed"] for v in res["summary"]["volumes"]), res["summary"]["volumes"]

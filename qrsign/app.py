@@ -6,11 +6,12 @@ Single-user local app: one Project object holds the state; every control change 
 import inspect
 import io
 import sys
+import time
 from pathlib import Path
 
 from nicegui import app as ng_app, ui
 
-from . import __version__, encode, fonts, print3d, project, render
+from . import __version__, assembly, encode, fonts, print3d, project, render
 from . import signmaker as sm
 
 PROJECTS_DIR = Path.home() / "qrsign-projects"
@@ -39,6 +40,22 @@ def _svg_box(svg: str, px: int) -> str:
     svg = re.sub(r'\swidth="[^"]+"', "", svg, count=1)
     svg = re.sub(r'\sheight="[^"]+"', "", svg, count=1)
     return f'<div style="width:{px}px;max-width:100%;background:#fff;padding:8px;border:1px solid #ddd;border-radius:8px">{svg}</div>'
+
+
+def _fill_scene(scene, parts, out_dir, prefix, folder_name, look_height):
+    """Write the parts as STL files under the project folder and load them into the scene."""
+    scene.clear()
+    written = assembly.write_parts(parts, out_dir, prefix)
+    stamp = int(time.time())
+    with scene:
+        for name, path, color in written:
+            url = f"/projects/{folder_name}/output/assembly/{path.name}?v={stamp}"
+            scene.stl(url).material(color)
+    lo, hi = assembly.bounds(parts)
+    cx, cy, cz = (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, look_height
+    span = max(hi[0] - lo[0], hi[2] - lo[2])
+    scene.move_camera(x=cx + span * 0.55, y=cy - span * 1.05, z=cz + span * 0.45,
+                      look_at_x=cx, look_at_y=cy, look_at_z=cz, duration=0)
 
 
 def build(state: State):
@@ -141,6 +158,13 @@ def build(state: State):
             return
         state.sign_result = res
         w["sign_preview"].set_content(_svg_box(res["combined_svg_text"], 640))
+        try:
+            cfg3 = p.sign_config()
+            text, qr, _, cfg3 = print3d.layout_geometry(cfg3, res["qr_svg"], None, log=lambda *a: None)
+            parts = assembly.laser_stand(cfg3, text, qr)
+            _fill_scene(w["sign_scene"], parts, state.folder / "output" / "assembly", "laser", p.name, cfg3["height_mm"] * 0.45)
+        except Exception as e:
+            ui.notify(f"3D view failed: {e}", type="warning")
         info, cfg = res["info"], p.sign_config()
         w["sign_status"].set_text(
             f"QR {info['qr_mm']} mm · text above {info['font_above_mm']} mm · below {info['font_below_mm']} mm · "
@@ -176,6 +200,11 @@ def build(state: State):
             return
         state.print_result = res
         w["print_preview"].set_content(_svg_box(print3d.preview_svg(res["cfg"], res["text"], res["qr"], p.print), 320))
+        try:
+            parts = assembly.printed_stand(res, p.print)
+            _fill_scene(w["print_scene"], parts, state.folder / "output" / "assembly", "print", p.name, res["cfg"]["height_mm"] * 0.45)
+        except Exception as e:
+            ui.notify(f"3D view failed: {e}", type="warning")
         summary = res["summary"]
         heights = summary["face_layers"]
         changes = summary["colour_change_heights_mm"]
@@ -329,6 +358,8 @@ def build(state: State):
                         ui.button("Config file", icon="download", on_click=lambda: download_sign("config_txt"))
                     ui.label("Red = cut, black = engrave. Measure your stock and set the thickness before cutting; "
                              "test the slot fit on scrap and adjust the clearance.").classes("text-xs text-grey")
+                    ui.label("Assembled view (drag to orbit, wheel to zoom)").classes("text-subtitle2 mt-2")
+                    w["sign_scene"] = ui.scene(width=560, height=420, grid=(400, 20)).classes("border rounded")
         with ui.tab_panel(tab_print):
             ps = p.print
             with ui.row().classes("w-full gap-8 items-start"):
@@ -365,11 +396,15 @@ def build(state: State):
                     ui.button("Download 3MF", icon="download", on_click=download_print)
                     ui.label("Multi-filament: the 3MF opens in PrusaSlicer / Orca / Bambu Studio with the background, QR and text "
                              "parts assigned to extruders 1, 2 and 3. Single filament: add colour changes at the heights shown.").classes("text-xs text-grey")
+                    ui.label("Assembled view: the printed sign in its base").classes("text-subtitle2 mt-2")
+                    w["print_scene"] = ui.scene(width=560, height=420, grid=(400, 20)).classes("border rounded")
     refresh_qr()
 
 
 def main():
     state = State()
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    ng_app.add_static_files("/projects", str(PROJECTS_DIR))
 
     @ui.page("/")
     def index():

@@ -97,14 +97,17 @@ def _shapes_from_paths(d_strings, step):
     return shapes
 
 
-def layout_geometry(cfg, qr_path, settings: PrintSettings, log=lambda *a: None):
-    """Run the laser layout for the 3D sign and return (text_geom, qr_geom, info), in sign mm with y UP."""
+def layout_geometry(cfg, qr_path, settings=None, log=lambda *a: None):
+    """Run the laser layout and return (text_geom, qr_geom, info, cfg), in sign mm with y UP.
+    With `settings` (3D print) the thickness, blank zone and slot are taken from the print
+    settings; without, the laser config is used as is (for the assembled laser preview)."""
     from svgelements import Path as SPath, Matrix
     cfg = dict(cfg)
-    cfg["thickness_mm"] = settings.sign_thickness()
-    cfg["base_height_mm"] = settings.slot_depth_mm       # blank zone at the bottom = what sits in the slot
-    cfg["angle_deg"], cfg["base_angle_deg"] = 0.0, 90.0  # square crossing: slot width = thickness + clearance
-    cfg["slot_clearance_mm"] = settings.slot_clearance_mm
+    if settings is not None:
+        cfg["thickness_mm"] = settings.sign_thickness()
+        cfg["base_height_mm"] = settings.slot_depth_mm       # blank zone at the bottom = what sits in the slot
+        cfg["angle_deg"], cfg["base_angle_deg"] = 0.0, 90.0  # square crossing: slot width = thickness + clearance
+        cfg["slot_clearance_mm"] = settings.slot_clearance_mm
     ts = sm.Typesetter(sm.find_font(cfg["font"]))
     qr_paths, qr_bbox = sm.load_qr(Path(qr_path))
     if cfg["merge_qr"]:
@@ -123,7 +126,6 @@ def layout_geometry(cfg, qr_path, settings: PrintSettings, log=lambda *a: None):
     step = 0.05
     text = unary_union(_shapes_from_paths(text_d, step)) if text_d else None
     qr = unary_union(_shapes_from_paths(qr_d, step)) if qr_d else None
-    flip_y = lambda g: affinity.scale(affinity.translate(g, 0, -H), 1, -1, origin=(0, 0)) if g is not None else None
     # SVG y-down -> y up: y' = H - y
     text = affinity.affine_transform(text, [1, 0, 0, -1, 0, H]) if text is not None else None
     qr = affinity.affine_transform(qr, [1, 0, 0, -1, 0, H]) if qr is not None else None
@@ -134,10 +136,19 @@ def layout_geometry(cfg, qr_path, settings: PrintSettings, log=lambda *a: None):
 # builders
 # ----------------------------------------------------------------------------
 
+def manifold_safe(geom, grow=0.01):
+    """Grow raised geometry by a hair (0.01 mm, mitred) so shapes that touch at a single point
+    become joined by a tiny neck: point contacts give the shell a non-manifold vertex."""
+    if geom is None or geom.is_empty:
+        return geom
+    return geom.buffer(grow, join_style=2)
+
+
 def build_sign(cfg, text, qr, s: PrintSettings):
     """-> list of mesh3d.Volume for the sign, lying flat, face up (or flipped)."""
     W, H, r = cfg["width_mm"], cfg["height_mm"], cfg["corner_radius_mm"] or 0.0
     plate = rounded_rect(0, 0, W, H, (r, r, r, r))
+    qr, text = manifold_safe(qr), manifold_safe(text)
     raised = unary_union([g for g in (qr, text) if g is not None]) if (qr is not None or text is not None) else None
     vols = []
     if s.mode == "multi":
