@@ -57,3 +57,17 @@ def test_make_sign(tmp_path):
     cfg = p.sign_config()
     assert abs(cfg["angle_deg"] + cfg["base_angle_deg"] - 90) < 0.05
     assert res["info"]["qr_mm"] > 40
+
+
+def test_svg_logo_scans(tmp_path):
+    logo = tmp_path / "logo.svg"
+    logo.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+                    '<rect width="100" height="100" fill="#fff"/>'
+                    '<path d="M10,10 L90,10 L50,60 Z" fill="#000"/><circle cx="50" cy="80" r="12" fill="#000"/></svg>',
+                    encoding="utf-8")
+    st = render.Style(body="rounded", logo_path=str(logo), logo_shape="circle", logo_size=0.22)
+    p = project.Project(name="svglogo", url=URL, style=st)
+    ok, text = p.verify()
+    assert ok, text
+    m, g = p.render_qr()
+    assert g.area > 0

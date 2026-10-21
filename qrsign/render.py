@@ -198,9 +198,13 @@ def eye_ball(shape):
 # ----------------------------------------------------------------------------
 
 def load_logo(path):
-    """Trace an image into outline paths (pixel coords) once; returns (paths, (w, h))."""
+    """Logo -> (outline paths, (w, h), bbox) in the logo's own coordinates.
+    Raster images (PNG/JPG/BMP) are traced with potrace; SVG logos keep their dark vector shapes."""
+    from .signmaker import raster_paths, load_qr_svg
+    if str(path).lower().endswith(".svg"):
+        paths, bbox = load_qr_svg(path)   # dark fills only, embedded images traced, white ignored
+        return paths, (bbox[2] - bbox[0], bbox[3] - bbox[1]), bbox
     from PIL import Image
-    from .signmaker import raster_paths
     im = Image.open(path)
     paths, bbox = raster_paths(im)
     return paths, (im.width, im.height), bbox

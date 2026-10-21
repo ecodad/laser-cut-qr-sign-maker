@@ -67,6 +67,13 @@ def build(state: State):
             w["qr_preview"].set_content(f'<div class="text-negative">{e}</div>')
             w["qr_status"].set_text("")
 
+    def refresh_qr_debounced():
+        """URL typing: wait 300 ms after the last keystroke before re-rendering."""
+        timer = w.get("url_timer")
+        if timer is not None:
+            timer.cancel()
+        w["url_timer"] = ui.timer(0.3, refresh_qr, once=True)
+
     def set_style(attr, value):
         setattr(p.style, attr, value)
         mark_selected(attr)
@@ -171,6 +178,10 @@ def build(state: State):
     def rename(e):
         p.name = (e.value or "my-sign").strip().replace(" ", "-")
 
+    def new_project():
+        state.project = project.Project(name="new-sign", url="")
+        ui.navigate.reload()
+
     # ---------------------------------------------------------------- layout
     w["cards"] = {}
     w["sign"] = {}
@@ -179,6 +190,7 @@ def build(state: State):
         ui.label("QR Sign Maker").classes("text-xl font-bold")
         ui.input("Project name", value=p.name, on_change=rename).props("dense dark").classes("w-48")
         ui.button("Save project", icon="save", on_click=save_project).props("flat color=white")
+        ui.button("New", icon="add", on_click=new_project).props("flat color=white")
         w["projects"] = ui.select({}, label="Open project", on_change=lambda e: load_project(e.value)).props("dense dark").classes("w-56")
         ui.space()
         ui.label(f"v{__version__} · projects in {PROJECTS_DIR}").classes("text-xs")
@@ -192,10 +204,10 @@ def build(state: State):
             with ui.row().classes("w-full gap-8 items-start"):
                 with ui.column().classes("gap-3").style("min-width:420px;max-width:640px"):
                     ui.input("URL", value=p.url, placeholder="https://…",
-                             on_change=lambda e: (setattr(p, "url", e.value), refresh_qr())).classes("w-full")
+                             on_change=lambda e: (setattr(p, "url", e.value), refresh_qr_debounced())).classes("w-full")
                     with ui.expansion("Logo", icon="image", value=bool(p.style.logo_path)).classes("w-full"):
                         w["logo_name"] = ui.label(f"Logo: {Path(p.style.logo_path).name}" if p.style.logo_path else "No logo")
-                        ui.upload(label="Upload a PNG / JPG / SVG logo (dark on light)", auto_upload=True,
+                        ui.upload(label="Upload a logo: PNG / JPG (dark on light, traced) or SVG (dark fills kept)", auto_upload=True,
                                   on_upload=on_logo_upload).props("accept=.png,.jpg,.jpeg,.svg,.bmp").classes("w-full")
                         with ui.row().classes("items-center gap-4"):
                             ui.select(render.LOGO_SHAPES, label="Knockout shape", value=p.style.logo_shape,
