@@ -7,7 +7,7 @@ project file where possible so a project folder can be moved.
 import json
 from pathlib import Path
 
-from . import encode, render
+from . import encode, render, print3d
 from . import signmaker as sm
 
 PROJECT_SUFFIX = ".qrsign.json"
@@ -35,12 +35,13 @@ class Project:
         self.sign = dict(DEFAULT_SIGN)
         if sign:
             self.sign.update(sign)
+        self.print = print3d.PrintSettings()
         self.path = Path(path) if path else None
 
     # ---- persistence ------------------------------------------------------
     def to_dict(self):
-        d = {"format": "qrsign-project", "version": 1, "name": self.name, "url": self.url,
-             "style": self.style.as_dict(), "sign": self.sign}
+        d = {"format": "qrsign-project", "version": 2, "name": self.name, "url": self.url,
+             "style": self.style.as_dict(), "sign": self.sign, "print": self.print.as_dict()}
         if self.path and self.style.logo_path:
             try:
                 d["style"]["logo_path"] = str(Path(self.style.logo_path).resolve().relative_to(self.path.parent.resolve()))
@@ -68,6 +69,7 @@ class Project:
             style.logo_path = str((path.parent / style.logo_path).resolve())
         p = cls(name=d.get("name", path.stem.replace(".qrsign", "")), url=d.get("url", ""),
                 style=style, sign=d.get("sign", {}), path=path)
+        p.print = print3d.PrintSettings.from_dict(d.get("print", {}))
         p.ensure_logo()
         return p
 
@@ -121,3 +123,14 @@ class Project:
         sm.write_config_file(cfg, cfg_path)
         res["config_txt"] = cfg_path
         return res
+
+    # ---- 3D print stage ---------------------------------------------------
+    def make_print(self, out_dir, log=print):
+        """Stage 3: the 3D-printable sign (and base) as <out_dir>/<name>.3mf, using the same
+        layout rules as the laser sign. Returns print3d.make_print's result dict."""
+        out_dir = Path(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cfg = self.sign_config()
+        qr_path = out_dir / f"{self.name}-qr.svg"
+        qr_path.write_text(self.qr_svg(size_mm=50), encoding="utf-8")
+        return print3d.make_print(cfg, qr_path, self.print, self.name, out_dir, log=log)

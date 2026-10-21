@@ -10,7 +10,7 @@ from pathlib import Path
 
 from nicegui import app as ng_app, ui
 
-from . import __version__, encode, fonts, project, render
+from . import __version__, encode, fonts, print3d, project, render
 from . import signmaker as sm
 
 PROJECTS_DIR = Path.home() / "qrsign-projects"
@@ -21,6 +21,7 @@ class State:
     def __init__(self):
         self.project = project.Project(name="my-sign", url="https://github.com/ecodad/laser-cut-qr-sign-maker")
         self.sign_result = None
+        self.print_result = None
         self.widgets = {}
 
     @property
@@ -153,9 +154,54 @@ def build(state: State):
         path = Path(state.sign_result[key])
         ui.download(path.read_bytes(), path.name)
 
+    # ---------------------------------------------------------------- 3D print stage
+    def print_values():
+        ps = p.print
+        for key, widget in w["print"].items():
+            val = widget.value
+            if key in ("qr_layers", "text_layers"):
+                val = int(val or 0)
+            setattr(ps, key, val)
+
+    def refresh_print():
+        sign_values()
+        print_values()
+        try:
+            res = p.make_print(state.folder / "output", log=lambda *a: None)
+        except sm.ConfigError as e:
+            ui.notify(str(e), type="negative")
+            return
+        except Exception as e:
+            ui.notify(f"3D build failed: {e}", type="negative")
+            return
+        state.print_result = res
+        w["print_preview"].set_content(_svg_box(print3d.preview_svg(res["cfg"], res["text"], res["qr"], p.print), 320))
+        summary = res["summary"]
+        heights = summary["face_layers"]
+        changes = summary["colour_change_heights_mm"]
+        msg = (f"{summary['mode']} - sign {summary['sign_thickness_mm']} mm thick - background top {heights['background_top']} mm, "
+               f"QR top {heights['qr_top']} mm, text top {heights['text_top']} mm")
+        if changes:
+            msg += f" - colour changes at z = {changes[0]} mm (QR colour) and {changes[1]} mm (text colour)"
+        base = summary["base"]
+        msg += (f" - base {base['width']:.1f} x {base['depth']} x {base['height']} mm, slot {base['slot_width']} mm "
+                f"leaning {base['lean_deg']} deg - {res['3mf'].name} in {res['3mf'].parent}")
+        bad = [v["volume"] for v in summary["volumes"] if not v["closed"]]
+        if bad:
+            msg += " - WARNING open shells: " + ", ".join(bad)
+        w["print_status"].set_text(msg)
+
+    def download_print():
+        if not state.print_result:
+            ui.notify("Generate the 3D files first", type="warning")
+            return
+        path = Path(state.print_result["3mf"])
+        ui.download(path.read_bytes(), path.name)
+
     # ---------------------------------------------------------------- project
     def save_project():
         sign_values()
+        print_values()
         p.save(state.project_file)
         ui.notify(f"Saved {state.project_file}", type="positive")
         refresh_project_list()
@@ -185,6 +231,7 @@ def build(state: State):
     # ---------------------------------------------------------------- layout
     w["cards"] = {}
     w["sign"] = {}
+    w["print"] = {}
     ui.page_title("QR Sign Maker")
     with ui.header().classes("items-center gap-4"):
         ui.label("QR Sign Maker").classes("text-xl font-bold")
@@ -199,6 +246,7 @@ def build(state: State):
     with ui.tabs().classes("w-full") as tabs:
         tab_qr = ui.tab("1 · QR code", icon="qr_code_2")
         tab_sign = ui.tab("2 · Laser-cut sign", icon="carpenter")
+        tab_print = ui.tab("3 · 3D-printed sign", icon="view_in_ar")
     with ui.tab_panels(tabs, value=tab_qr).classes("w-full"):
         with ui.tab_panel(tab_qr):
             with ui.row().classes("w-full gap-8 items-start"):
@@ -281,6 +329,42 @@ def build(state: State):
                         ui.button("Config file", icon="download", on_click=lambda: download_sign("config_txt"))
                     ui.label("Red = cut, black = engrave. Measure your stock and set the thickness before cutting; "
                              "test the slot fit on scrap and adjust the clearance.").classes("text-xs text-grey")
+        with ui.tab_panel(tab_print):
+            ps = p.print
+            with ui.row().classes("w-full gap-8 items-start"):
+                with ui.column().classes("gap-2").style("min-width:420px;max-width:520px"):
+                    ui.label("Uses the size, text, font and border from the sign tab; the QR and text are raised on a flat plate.").classes("text-xs text-grey")
+                    w["print"]["mode"] = ui.select({"multi": "Multi-filament (parts side by side, same height)",
+                                                    "single": "Single filament with colour changes (by height)"},
+                                                   label="Print mode", value=ps.mode).classes("w-full")
+                    with ui.row().classes("gap-2 items-center"):
+                        w["print"]["color_background"] = ui.color_input("Background", value=ps.color_background).classes("w-36")
+                        w["print"]["color_qr"] = ui.color_input("QR code", value=ps.color_qr).classes("w-36")
+                        w["print"]["color_text"] = ui.color_input("Text", value=ps.color_text).classes("w-36")
+                    with ui.row().classes("gap-2"):
+                        w["print"]["back_mm"] = ui.number("Back plate (mm)", value=ps.back_mm, min=0.6, max=10, step=0.2).classes("w-32")
+                        w["print"]["layer_height"] = ui.number("Layer height (mm)", value=ps.layer_height, min=0.05, max=0.6, step=0.05).classes("w-32")
+                        w["print"]["qr_layers"] = ui.number("QR layers", value=ps.qr_layers, min=1, max=20, step=1).classes("w-28")
+                        w["print"]["text_layers"] = ui.number("Text layers above QR (single)", value=ps.text_layers, min=1, max=10, step=1).classes("w-52")
+                    w["print"]["flip"] = ui.checkbox("Flip: face on the bed (multi-filament only)", value=ps.flip)
+                    with ui.expansion("Base", icon="foundation", value=True).classes("w-full"):
+                        w["print"]["include_base"] = ui.checkbox("Include the base", value=ps.include_base)
+                        with ui.row().classes("gap-2"):
+                            w["print"]["base_lean_deg"] = ui.number("Lean (deg)", value=ps.base_lean_deg, min=0, max=45, step=1).classes("w-24")
+                            w["print"]["base_depth_mm"] = ui.number("Depth (mm)", value=ps.base_depth_mm, min=15, max=200).classes("w-28")
+                            w["print"]["base_height_mm"] = ui.number("Height (mm)", value=ps.base_height_mm, min=5, max=100).classes("w-28")
+                            w["print"]["base_wall_mm"] = ui.number("Side wall (mm)", value=ps.base_wall_mm, min=1, max=20).classes("w-28")
+                        with ui.row().classes("gap-2"):
+                            w["print"]["slot_depth_mm"] = ui.number("Slot depth (mm)", value=ps.slot_depth_mm, min=3, max=60).classes("w-32")
+                            w["print"]["slot_clearance_mm"] = ui.number("Slot clearance (mm)", value=ps.slot_clearance_mm, min=0, max=2, step=0.05).classes("w-36")
+                            w["print"]["slot_side_clearance_mm"] = ui.number("Side clearance (mm)", value=ps.slot_side_clearance_mm, min=0, max=3, step=0.1).classes("w-36")
+                    ui.button("Generate 3D files", icon="view_in_ar", on_click=refresh_print).props("color=primary")
+                with ui.column().classes("gap-3 items-start"):
+                    w["print_preview"] = ui.html('<div class="text-grey">Generate to preview the printed sign (top view)</div>', sanitize=False)
+                    w["print_status"] = ui.label("").classes("text-sm")
+                    ui.button("Download 3MF", icon="download", on_click=download_print)
+                    ui.label("Multi-filament: the 3MF opens in PrusaSlicer / Orca / Bambu Studio with the background, QR and text "
+                             "parts assigned to extruders 1, 2 and 3. Single filament: add colour changes at the heights shown.").classes("text-xs text-grey")
     refresh_qr()
 
 
@@ -292,7 +376,10 @@ def main():
         build(state)
 
     # local-only: bind to the loopback address so the designer is not exposed on the network
-    ui.run(title="QR Sign Maker", host="127.0.0.1", port=8765, reload=False,
+    port = 8765
+    if "--port" in sys.argv:
+        port = int(sys.argv[sys.argv.index("--port") + 1])
+    ui.run(title="QR Sign Maker", host="127.0.0.1", port=port, reload=False,
            show="--no-browser" not in sys.argv, favicon="🔲")
 
 

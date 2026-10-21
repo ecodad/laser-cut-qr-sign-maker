@@ -1,9 +1,10 @@
 # Laser Cut QR Sign Maker
 
 Design a static QR code with styled modules, eyes and an optional logo, then turn it into a
-two-piece laser-cut tabletop sign: a board with the code and text engraved, leaning on a
-second board slid through it from the side. Output is a LightBurn-ready SVG (red cut lines,
-black engraving). Two ways to use it:
+tabletop sign two ways: a two-piece **laser-cut** stand (LightBurn-ready SVG, red cut lines,
+black engraving) or a **3D-printed** sign with the code and text raised on a plate, plus a
+base with an angled slot (one 3MF, multi-filament or single filament with colour changes).
+Two ways to use it:
 
 * **The app** (`qrsign`): a local browser UI, QR designer first, sign second, live preview,
   scan check on every change, project files you can reopen.
@@ -32,11 +33,27 @@ project's `output/` folder and shows the cut sheet (sign left, base right). Down
 sign SVG, the base SVG, both on one sheet, or the plain config file that reproduces the
 sign on the command line.
 
+**3 · 3D-printed sign.** Uses the size, text, font and border from the sign tab. Pick a print
+mode and three colours:
+
+* *Multi-filament*: a back plate (2 mm) plus a 1 mm face made of three parts at the same
+  height, background, QR and text, so the top is flat. The 3MF opens in PrusaSlicer, Orca or
+  Bambu Studio with the parts assigned to extruders 1, 2 and 3. *Flip* turns the sign over
+  so the face prints on the bed for a glassy finish.
+* *Single filament with colour changes*: background plate 2 mm, QR raised 5 layers (1 mm),
+  text 3 more layers above the QR. Add colour changes in the slicer at the two heights the
+  app shows (2.0 mm and 3.0 mm by default).
+
+Layer height, plate thickness and layer counts are all settings. The base is a block with a
+slot leaning back 10° (configurable), as wide as the sign plus side walls, and the sign keeps
+a blank zone at the bottom as deep as the slot. *Generate 3D files* writes `<name>.3mf` with
+the sign and the base side by side; delete one in the slicer if you only want the other.
+
 **Projects.** *Save project* writes `~/qrsign-projects/<name>/<name>.qrsign.json` with the
 URL, the style, the logo and the sign settings; *Open project* lists the saved ones.
 
-Black only in this version: colours, gradients, other content types, a density warning for
-very small signs, and an "open in Blender" preview are planned.
+The QR code itself is black only in this version: screen colours and gradients, other content
+types, a density warning for very small signs, and an "open in Blender" preview are planned.
 
 ## Install
 
@@ -147,7 +164,19 @@ python -m pytest tests -q
 ```
 
 Every body, eye and logo-knockout style is rendered and decoded with zxing-cpp, so a style
-that stops scanning fails the suite.
+that stops scanning fails the suite. The 3D tests check that every printed shell is closed,
+that heights and the blank zone are right, and (if PrusaSlicer is installed) that its console
+reads the 3MF.
+
+## 3D printing notes
+
+* Meshes are built straight from the same outlines the laser path engraves, extruded and
+  triangulated with `mapbox_earcut`; no CAD program is involved. Each colour is its own
+  closed shell, and touching shells (the plate and the raised parts) are left for the slicer
+  to merge, which every mainstream slicer does.
+* Text and QR modules thinner than your nozzle will be dropped by the slicer; keep the sign
+  large enough that the smallest module is at least 0.8 mm, or use a plainer body shape.
+* The slot is the sign thickness plus 0.3 mm; adjust *Slot clearance* for your printer.
 
 ## 3D previews (optional)
 

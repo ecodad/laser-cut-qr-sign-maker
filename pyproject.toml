@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "laser-cut-qr-sign-maker"
-version = "0.2.0"
+version = "0.3.0"
 description = "Design a static QR code with styled modules and turn it into a two-piece laser-cut tabletop sign (LightBurn-ready SVG)."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [{ name = "Jonathan Hunt" }]
-keywords = ["qr-code", "laser-cutter", "lightburn", "svg", "nicegui"]
+keywords = ["qr-code", "laser-cutter", "lightburn", "svg", "3mf", "3d-printing", "nicegui"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -27,6 +27,7 @@ dependencies = [
     "potracer>=0.0.4",
     "zxing-cpp>=2.2",
     "nicegui>=2.0",
+    "mapbox_earcut>=1.0",
 ]
 
 [project.optional-dependencies]
