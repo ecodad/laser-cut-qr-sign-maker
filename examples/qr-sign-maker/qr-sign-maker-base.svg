@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="80.000mm" height="68.500mm" viewBox="0 0 80.000 68.500">
+  <!-- make-laser-qr: qr-sign-maker | sign 80.0x150.0x3.0 mm, lean 9.7 deg, base lean 80.3 deg, slot 3.10 mm, corner r 2.5 mm, QR 70.0 mm, font above [5.68, 14.21] mm, below [6.79] mm | base piece -->
+  <g id="base">
+    <path id="base-cut" fill="none" stroke="#ff0000" stroke-width="0.1" d="M0.000,2.500 A2.500,2.500 0 0 1 2.500,0.000 L77.500,0.000 A2.500,2.500 0 0 1 80.000,2.500 L80.000,8.450 L40.000,8.450 L40.000,11.550 L80.000,11.550 L80.000,66.000 A2.500,2.500 0 0 1 77.500,68.500 L2.500,68.500 A2.500,2.500 0 0 1 0.000,66.000 Z"/>
+  </g>
+</svg>

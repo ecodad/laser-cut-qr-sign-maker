@@ -112,29 +112,62 @@ def _triangulate(rings):
     return pts, tri
 
 
-def extrude(geom, z0, z1):
-    """Solid between z0 and z1 under every polygon of `geom` (holes supported). One closed shell per polygon.
-    The walls are built on the cap triangulation's own boundary edges, so caps and walls always agree."""
+def _cap_area(pts, cap):
+    a, b, c = pts[cap[:, 0]], pts[cap[:, 1]], pts[cap[:, 2]]
+    return float(np.abs((b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (b[:, 1] - a[:, 1]) * (c[:, 0] - a[:, 0])).sum() / 2)
+
+
+def _shell(part, z0, z1):
+    """One closed shell for a single polygon, or None if the triangulation is unusable
+    (no triangles, or the cap's area disagrees with the polygon's: ear clipping can bridge
+    across awkward holes and fill them while keeping the shell topologically closed)."""
+    rings = _rings(part)
+    if not rings:
+        return None
+    pts, cap = _triangulate(rings)
+    if len(cap) == 0:
+        return None
+    if abs(_cap_area(pts, cap) - part.area) > 1e-5 * part.area + 1e-5:
+        return None
+    n = len(pts)
+    verts = np.vstack([np.column_stack([pts, np.full(n, z0)]), np.column_stack([pts, np.full(n, z1)])])
+    directed = set()
+    for a, b, c in cap:
+        directed.update(((a, b), (b, c), (c, a)))
+    boundary = [(a, b) for (a, b) in directed if (b, a) not in directed]   # CCW outside, CW around holes
+    tris = [cap[:, [0, 2, 1]], cap + n]        # bottom cap faces down, top cap faces up
+    walls = np.array([[[a, b, b + n], [a, b + n, a + n]] for a, b in boundary]).reshape(-1, 3)
+    tris.append(walls)
+    return Mesh(verts, np.vstack(tris))
+
+
+def extrude(geom, z0, z1, _depth=0):
+    """Solid between z0 and z1 under every polygon of `geom` (holes supported), one closed shell per
+    polygon. The walls are built on the cap triangulation's own boundary edges; if the ear-clipping
+    still leaves a shell open (it can, on a plate with hundreds of glyph-shaped holes), the polygon is
+    split in half and each half extruded on its own, recursively."""
+    from shapely.geometry import box as _box
     out = Mesh()
     for poly in _polys(geom):
         poly = poly.buffer(0)
         for part in _polys(poly):
-            rings = _rings(part)
-            if not rings:
+            shell = _shell(part, z0, z1)
+            if shell is not None and shell.is_closed():
+                out.append(shell)
                 continue
-            pts, cap = _triangulate(rings)
-            if len(cap) == 0:
+            if _depth >= 8 or part.area < 1e-6:
+                if shell is not None:
+                    out.append(shell)              # best effort
                 continue
-            n = len(pts)
-            verts = np.vstack([np.column_stack([pts, np.full(n, z0)]), np.column_stack([pts, np.full(n, z1)])])
-            directed = set()
-            for a, b, c in cap:
-                directed.update(((a, b), (b, c), (c, a)))
-            boundary = [(a, b) for (a, b) in directed if (b, a) not in directed]   # CCW outside, CW around holes
-            tris = [cap[:, [0, 2, 1]], cap + n]        # bottom cap faces down, top cap faces up
-            walls = np.array([[[a, b, b + n], [a, b + n, a + n]] for a, b in boundary]).reshape(-1, 3)
-            tris.append(walls)
-            out.append(Mesh(verts, np.vstack(tris)))
+            x0, y0, x1, y1 = part.bounds
+            if (x1 - x0) >= (y1 - y0):
+                xm = (x0 + x1) / 2
+                halves = (_box(x0 - 1, y0 - 1, xm, y1 + 1), _box(xm, y0 - 1, x1 + 1, y1 + 1))
+            else:
+                ym = (y0 + y1) / 2
+                halves = (_box(x0 - 1, y0 - 1, x1 + 1, ym), _box(x0 - 1, ym, x1 + 1, y1 + 1))
+            for h in halves:
+                out.append(extrude(part.intersection(h), z0, z1, _depth + 1))
     return out
 
 

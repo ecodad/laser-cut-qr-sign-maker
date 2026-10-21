@@ -4,6 +4,15 @@ Design a static QR code with styled modules, eyes and an optional logo, then tur
 tabletop sign two ways: a two-piece **laser-cut** stand (LightBurn-ready SVG, red cut lines,
 black engraving) or a **3D-printed** sign with the code and text raised on a plate, plus a
 base with an angled slot (one 3MF, multi-filament or single filament with colour changes).
+<p align="center">
+  <img src="examples/qr-sign-maker/images/qr-code.png" width="220" alt="Styled QR code linking to this repository">
+  <img src="examples/qr-sign-maker/images/laser-stand-assembled.png" width="330" alt="Laser-cut stand, assembled">
+  <img src="examples/qr-sign-maker/images/printed-sign-assembled.png" width="330" alt="3D-printed sign in its base">
+</p>
+
+The code above links back to this repository; the whole example (project file, cut files,
+3MF and images) is in [`examples/qr-sign-maker/`](examples/qr-sign-maker/).
+
 Two ways to use it:
 
 * **The app** (`qrsign`): a local browser UI, QR designer first, sign second, live preview,
@@ -160,6 +169,24 @@ stack by their actual ink height, so a small line over a big one has no dead spa
 1. Set `thickness_mm` to the measured stock thickness.
 2. Cut one on scrap and check the slide fit; adjust `slot_clearance_mm` for your kerf.
 3. In LightBurn, put the red layer on a cut setting and the black layer on a fill setting.
+
+## Example
+
+[`examples/qr-sign-maker/`](examples/qr-sign-maker/) is a complete project made with the app:
+
+| file | what |
+|---|---|
+| `qr-sign-maker.qrsign.json` | the project: URL, style (smooth body, leaf eye frames), sign and print settings |
+| `qr-sign-maker-qr.svg` | the styled QR code on its own |
+| `qr-sign-maker-sign.svg`, `-base.svg`, `-sheet.svg` | laser cut files: sign, base, both on one sheet |
+| `qr-sign-maker-config.txt` | the command-line config that reproduces the laser files |
+| `qr-sign-maker.3mf` | the 3D-printable sign and base, multi-filament |
+| `images/` | the QR code, the cut sheet and the two assembled views |
+
+Open it in the app with *Open project* after copying the folder into `~/qrsign-projects/`.
+The text uses Rockwell Extra Bold; pick another font if it is not installed.
+
+<p align="center"><img src="examples/qr-sign-maker/images/cut-sheet.png" width="520" alt="Cut sheet: sign left, base right"></p>
 
 ## Tests
 

@@ -136,12 +136,14 @@ def layout_geometry(cfg, qr_path, settings=None, log=lambda *a: None):
 # builders
 # ----------------------------------------------------------------------------
 
-def manifold_safe(geom, grow=0.01):
+def manifold_safe(geom, grow=0.01, tolerance=0.005):
     """Grow raised geometry by a hair (0.01 mm, mitred) so shapes that touch at a single point
-    become joined by a tiny neck: point contacts give the shell a non-manifold vertex."""
+    become joined by a tiny neck (point contacts give the shell a non-manifold vertex), then
+    simplify by 0.005 mm: glyph outlines sampled every 0.05 mm carry thousands of near-collinear
+    points that make the ear-clipping triangulator bridge across holes."""
     if geom is None or geom.is_empty:
         return geom
-    return geom.buffer(grow, join_style=2)
+    return geom.buffer(grow, join_style=2).simplify(tolerance)
 
 
 def build_sign(cfg, text, qr, s: PrintSettings):

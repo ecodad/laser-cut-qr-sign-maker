@@ -1,0 +1,20 @@
+# make-laser-qr config — written by qrsign
+
+width_mm: 80
+height_mm: 150
+thickness_mm: 3
+angle_deg: 9.7
+crossing_angle_deg: 90
+text_above: Make your own|QR Code
+qr_file: qr-sign-maker-qr.svg
+text_below: by Jonathan Hunt
+font: Rockwell Extra Bold
+border_mm: 5
+text_above_scales: 0.4|1
+gap_mm: 2.5
+base_height_mm: 10
+base_front_mm: 10
+base_back_mm: 58.5
+base_width_mm: 80
+base_angle_deg: 80.3
+qr_fraction: 0.62

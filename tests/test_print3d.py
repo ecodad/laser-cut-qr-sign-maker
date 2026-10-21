@@ -112,3 +112,31 @@ def test_eye_styles_give_closed_shells(tmp_path, frame, ball):
     p.sign.update({"text_above": "Donate to | Medforge", "text_below": "Thank you!", "font": _font()})
     res = p.make_print(tmp_path, log=lambda *a: None)
     assert all(v["closed"] for v in res["summary"]["volumes"]), res["summary"]["volumes"]
+
+
+def test_text_heavy_background_face_closes(tmp_path):
+    """A multi-filament face layer is a plate with hundreds of glyph-shaped holes; it must still be closed."""
+    p = project.Project(name="heavy", url=URL, style=render.Style(body="smooth", eye_frame="leaf"))
+    p.sign.update({"text_above": "Make your own | QR Code", "text_above_scales": "0.4 | 1",
+                   "text_below": "by Jonathan Hunt", "font": _font()})
+    res = p.make_print(tmp_path, log=lambda *a: None)
+    assert all(v["closed"] for v in res["summary"]["volumes"]), res["summary"]["volumes"]
+
+
+def test_face_layer_does_not_cover_text(tmp_path):
+    """Ear clipping must not bridge across glyph holes: no background top face inside the text."""
+    import numpy as np
+    from shapely.geometry import Point
+    from shapely.prepared import prep
+    p = project.Project(name="cover", url=URL, style=render.Style(body="smooth", eye_frame="leaf"))
+    p.sign.update({"text_above": "Make your own | QR Code", "text_above_scales": "0.4 | 1",
+                   "text_below": "by Jonathan Hunt", "font": _font()})
+    res = p.make_print(tmp_path, log=lambda *a: None)
+    text = prep(res["text"].buffer(-0.05))
+    bg = next(v for v in res["objects"][0].volumes if v.name == "Background")
+    V, T = bg.mesh.vertices, bg.mesh.triangles
+    z_face = p.print.back_mm + p.print.qr_mm
+    top = np.all(np.isclose(V[T][:, :, 2], z_face), axis=1)
+    centres = V[T][top].mean(axis=1)
+    inside = sum(1 for c in centres if text.contains(Point(c[0], c[1])))
+    assert inside == 0, inside
