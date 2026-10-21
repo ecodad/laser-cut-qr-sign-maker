@@ -1,29 +1,52 @@
 # Laser Cut QR Sign Maker
 
-Generate a LightBurn-ready SVG for a small tabletop sign: a QR code with a line or two of
-text above and below, engraved on a board that leans back on a second board slid through it
-from the side. One short config file per sign.
+Design a static QR code with styled modules, eyes and an optional logo, then turn it into a
+two-piece laser-cut tabletop sign: a board with the code and text engraved, leaning on a
+second board slid through it from the side. Output is a LightBurn-ready SVG (red cut lines,
+black engraving). Two ways to use it:
+
+* **The app** (`qrsign`): a local browser UI, QR designer first, sign second, live preview,
+  scan check on every change, project files you can reopen.
+* **The command line** (`laser-qr --config configs/<sign>.txt`): one config file per sign,
+  bring your own QR file.
+
+## App
 
 ```
-python make-laser-qr.py --config configs/medforge-give.txt
+pip install .            # from a clone; adds the `qrsign` and `laser-qr` commands
+qrsign                   # opens http://127.0.0.1:8765 in your browser
 ```
 
-Outputs land in `output/`:
+**1 · QR code.** Enter a URL (the only content type in this version; error correction is
+always H). Pick a body shape, an eye frame and an eye ball from the icon rows; the preview
+re-renders on every change and the line under it says whether the result still scans.
+Optionally upload a logo (dark on light): it is traced into outlines, and the modules behind
+it are cleared in a square, circle or octagon whose size you set with the slider. Download
+the code as SVG (vector, sized 50 mm, scale freely) or PNG at a chosen pixel size.
 
-| file | contents |
-|---|---|
-| `<name>.svg` | both pieces side by side |
-| `<name>-sign.svg` | the sign piece alone |
-| `<name>-base.svg` | the base piece alone |
-| `<name>.json` | geometry summary (angles, slot, layout) used by the 3D previews |
+**2 · Laser-cut sign.** Set the board size and thickness, the text above and below (lines
+separated by `|`, optional relative sizes per line), a font from those installed, and the
+border. *Advanced* exposes everything else: crossing angle or sign lean, base lengths,
+corner radius, slot clearance, QR share, gaps. *Generate sign* writes the files into the
+project's `output/` folder and shows the cut sheet (sign left, base right). Download the
+sign SVG, the base SVG, both on one sheet, or the plain config file that reproduces the
+sign on the command line.
 
-Cut lines are red (`#ff0000`, 0.1 mm stroke) and engraving is black fill. Text is converted
-to glyph outlines from the font file, so LightBurn needs no font installed. Adjacent QR
-modules and the logo are unioned into single filled regions, so a fill engrave has no seams.
+**Projects.** *Save project* writes `~/qrsign-projects/<name>/<name>.qrsign.json` with the
+URL, the style, the logo and the sign settings; *Open project* lists the saved ones.
+
+Black only in this version: colours, gradients, other content types, a density warning for
+very small signs, and an "open in Blender" preview are planned.
 
 ## Install
 
 Python 3.10 or newer.
+
+```
+pip install .          # everything, including the app
+```
+
+or just the libraries for the command line:
 
 ```
 pip install fonttools svgelements pillow potracer numpy shapely
@@ -55,7 +78,7 @@ rectangles and separate shapes, which render with hairline seams.
 * The sign's slot opens on its left edge and the base's on its right edge, each half the
   width, so the two pieces slide together sideways.
 
-## Config file
+## Command line: config file
 
 `key: value` lines, `#` comments (inline comments after a value are fine). Text lines are
 separated by `|`. See [configs/medforge-give.txt](configs/medforge-give.txt) for a complete
@@ -115,6 +138,16 @@ stack by their actual ink height, so a small line over a big one has no dead spa
 1. Set `thickness_mm` to the measured stock thickness.
 2. Cut one on scrap and check the slide fit; adjust `slot_clearance_mm` for your kerf.
 3. In LightBurn, put the red layer on a cut setting and the black layer on a fill setting.
+
+## Tests
+
+```
+pip install .[dev]
+python -m pytest tests -q
+```
+
+Every body, eye and logo-knockout style is rendered and decoded with zxing-cpp, so a style
+that stops scanning fails the suite.
 
 ## 3D previews (optional)
 
