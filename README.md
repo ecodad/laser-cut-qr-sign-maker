@@ -60,8 +60,10 @@ the sign and the base side by side; delete one in the slicer if you only want th
 
 **Base engraving.** By default the laser base also gets a 30 mm QR code and a one-line URL
 engraved on its top, behind the sign, readable from behind the stand, pointing at this
-repository so someone who likes the sign can make their own. Untick it in the sign tab to
-leave the base plain, or change the URL, the text, the size and the text height. The base is
+repository so someone who likes the sign can make their own. The URL line is always set in
+Arial (or the first plain sans installed), since decorative sign fonts make a URL hard to
+read. Untick it in the sign tab to leave the base plain, or change the URL, the text, the
+size and the text height. The base is
 drawn mirrored about its centre line so that engraved face ends up on top; the slot still
 comes out on the same side when assembled.
 

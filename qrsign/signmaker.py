@@ -748,6 +748,19 @@ def _svg_doc(w, h, inner, comment):
     ])
 
 
+BASE_TEXT_FONTS = ("Arial", "Liberation Sans", "DejaVu Sans", "Helvetica", "Arimo")
+
+
+def base_text_typesetter(fallback):
+    """Typesetter for the base's URL line: Arial, or the first plain sans installed, else the sign font."""
+    for name in BASE_TEXT_FONTS:
+        try:
+            return Typesetter(find_font(name))
+        except ConfigError:
+            continue
+    return fallback
+
+
 def base_engraving(cfg, ts):
     """QR code + one text line for the top of the base, behind the sign. Returns (elements, info)
     where elements are (path d, transform) in the base's *mirrored* drawing coords (front end at
@@ -774,6 +787,9 @@ def base_engraving(cfg, ts):
     k = size / total
     text = (cfg.get("base_qr_text") or url).strip()
     text_mm = float(cfg.get("base_qr_text_mm") or 2.8)
+    # the URL line is always set in a plain sans (Arial where available): a decorative sign
+    # font makes a URL at 3 mm nearly unreadable
+    ts = base_text_typesetter(ts)
     gap = 1.5
     t_h = 0.0
     text_el = None

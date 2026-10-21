@@ -85,3 +85,9 @@ def test_assembled_base_engraving_on_top(tmp_path):
     t = cfg3["thickness_mm"]
     assert d.max() <= -t / 2 + 1e-6 and d.min() >= -t / 2 - assembly.ENGRAVE_MM - 1e-6, (d.min(), d.max())
     assert eng.vertices[:, 1].min() > 5
+
+
+def test_base_text_uses_plain_sans():
+    ts = sm.base_text_typesetter(None)
+    assert ts is not None
+    assert ts.font["name"].getDebugName(1) in sm.BASE_TEXT_FONTS
