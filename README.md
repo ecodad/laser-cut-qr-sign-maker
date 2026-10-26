@@ -203,6 +203,19 @@ The text uses Rockwell Extra Bold; pick another font if it is not installed.
   <img src="examples/qr-sign-maker/images/laser-stand-from-behind.png" width="400" alt="The base's QR code and URL, seen from behind the stand">
 </p>
 
+## Engraving test ladder
+
+`tools/qr_ladder.py` writes one sheet with the same code at several sizes, each labelled,
+for dialling in laser settings and wood treatments:
+
+```
+python tools/qr_ladder.py --url https://example.com --sizes 10 12 15 20 25 30 --out output/qr-ladder.svg
+```
+
+Black is the engraving, red is an optional cut outline per tile. Engrave the sheet under each
+treatment and note the smallest size that still scans; the file's header comment lists the
+module size each tile gives.
+
 ## Tests
 
 ```
