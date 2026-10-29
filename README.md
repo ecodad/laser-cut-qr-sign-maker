@@ -51,7 +51,8 @@ mode and three colours:
   so the face prints on the bed for a glassy finish.
 * *Single filament with colour changes*: background plate 2 mm, QR raised 5 layers (1 mm),
   text 3 more layers above the QR. Add colour changes in the slicer at the two heights the
-  app shows (2.0 mm and 3.0 mm by default).
+  app shows (2.0 mm and 3.0 mm by default). The model is layer-accurate: the text columns
+  are QR-coloured up to the QR height and text-coloured only above it, exactly as they print.
 
 Layer height, plate thickness and layer counts are all settings. The base is a block with a
 slot leaning back 10° (configurable), as wide as the sign plus side walls, and the sign keeps

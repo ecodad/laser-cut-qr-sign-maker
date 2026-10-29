@@ -166,11 +166,15 @@ def build_sign(cfg, text, qr, s: PrintSettings):
         if s.flip:
             vols = [mesh3d.Volume(v.name, v.mesh.mirrored_z(z_face), v.color, v.extruder) for v in vols]
     else:
+        # single filament, colours change by height: everything between the plate and the QR
+        # height prints in the QR colour, including the lower part of the text columns; only
+        # the layers above the QR height are the text colour
         vols.append(mesh3d.Volume("Background", mesh3d.extrude(plate, 0, s.back_mm), s.color_background, 1))
-        if qr is not None:
-            vols.append(mesh3d.Volume("QR code", mesh3d.extrude(qr, s.back_mm, s.back_mm + s.qr_mm), s.color_qr, 1))
+        if raised is not None:
+            vols.append(mesh3d.Volume("QR code", mesh3d.extrude(raised, s.back_mm, s.back_mm + s.qr_mm), s.color_qr, 1))
         if text is not None:
-            vols.append(mesh3d.Volume("Text", mesh3d.extrude(text, s.back_mm, s.back_mm + s.qr_mm + s.text_mm), s.color_text, 1))
+            z_qr = s.back_mm + s.qr_mm
+            vols.append(mesh3d.Volume("Text", mesh3d.extrude(text, z_qr, z_qr + s.text_mm), s.color_text, 1))
     return vols
 
 

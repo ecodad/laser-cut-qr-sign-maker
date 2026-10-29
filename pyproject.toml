@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "laser-cut-qr-sign-maker"
-version = "0.3.4"
+version = "0.3.5"
 description = "Design a static QR code with styled modules and turn it into a two-piece laser-cut tabletop sign (LightBurn-ready SVG)."
 readme = "README.md"
 license = { text = "MIT" }

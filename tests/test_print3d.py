@@ -63,6 +63,12 @@ def test_make_print(tmp_path, mode, flip):
         qr = next(v for v in sign.volumes if v.name == "QR code")
         assert abs(text.mesh.bounds()[1][2] - (2.0 + 1.0 + 0.6)) < 1e-6
         assert abs(qr.mesh.bounds()[1][2] - 3.0) < 1e-6
+        # layer-accurate colours: the text-colour volume starts where the QR colour stops, and
+        # the QR-colour volume covers the text footprint below that
+        assert abs(text.mesh.bounds()[0][2] - 3.0) < 1e-6
+        tlo, thi = text.mesh.bounds()
+        qlo, qhi = qr.mesh.bounds()
+        assert qlo[1] <= tlo[1] and qhi[1] >= thi[1]
     else:
         # all parts share the face plane: tops when face up, bottoms (z = 0) when flipped onto the bed
         idx = 0 if flip else 1
